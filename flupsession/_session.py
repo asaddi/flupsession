@@ -6,7 +6,7 @@ from Cookie import SimpleCookie
 from cryptography.fernet import Fernet, InvalidToken
 
 
-#__all__ = ['SessionMiddleware']
+__all__ = ['SessionMiddleware']
 
 
 class Session(dict):
@@ -76,7 +76,8 @@ class SessionSerializer(object):
 
 class SessionMiddleware(object):
 
-    def __init__(self, application, secret_key,
+    def __init__(self, application,
+                 secret_key=None, # Default: randomly generated
                  environ_key='flup.session',
                  cookie_key='flup.session.id',
                  cookie_domain=None, # Default: current domain
@@ -86,6 +87,10 @@ class SessionMiddleware(object):
                  secure=None # Default: True if https, False otherwise
     ):
         self._application = application
+        if secret_key is None:
+            # Only good for cookies for that expire at end-of-session
+            secret_key = Fernet.generate_key()
+            # TODO emit warning if cookie_expires is set
         self._secret_key = secret_key
         self._environ_key = environ_key
         self._cookie_key = cookie_key

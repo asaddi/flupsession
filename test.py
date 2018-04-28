@@ -1,6 +1,5 @@
 from flupsession import SessionMiddleware
 
-from cryptography.fernet import Fernet
 
 def test_app(environ, start_response):
     session = environ['flup.session']
@@ -23,5 +22,5 @@ def test_app(environ, start_response):
     ])
     return ['count is now {}\n'.format(session['count'])]
 
-# Generally, you would persist the generated key...
-app = SessionMiddleware(test_app, Fernet.generate_key())
+
+app = SessionMiddleware(test_app)
