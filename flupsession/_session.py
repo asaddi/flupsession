@@ -84,7 +84,8 @@ class SessionMiddleware(object):
                  cookie_path=None, # Default: current SCRIPT_NAME
                  cookie_expires=None, # Default: end-of-session
                  httponly=True,
-                 secure=None # Default: True if https, False otherwise
+                 secure=None, # Default: True if https, False otherwise
+                 token_ttl=None # Default: 1 day if cookie_expires is None
     ):
         self._application = application
         if secret_key is None:
@@ -100,6 +101,13 @@ class SessionMiddleware(object):
         self._httponly = httponly
         self._secure = secure
 
+        if token_ttl is None:
+            # If not set and cookie_expires is not set, default to 1 day
+            # Otherwise set to cookie_expires.
+            token_ttl = cookie_expires is not None and cookie_expires or \
+                        86400
+        self._token_ttl = token_ttl
+
         self._session_cls = Session # TODO configurable
         self._serializer = SessionSerializer() # TODO configurable
         self._crypto = Fernet(secret_key)
@@ -113,7 +121,7 @@ class SessionMiddleware(object):
         if morsel is not None:
             try:
                 # Attempt to decrypt and decode
-                session_data = self._crypto.decrypt(morsel.value)
+                session_data = self._crypto.decrypt(morsel.value, ttl=self._token_ttl)
                 session = self._session_cls(self._serializer.decode(session_data))
             except InvalidToken:
                 pass
