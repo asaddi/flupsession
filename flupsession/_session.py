@@ -113,6 +113,21 @@ class SessionMiddleware(object):
         self._crypto = Fernet(secret_key)
 
     def __call__(self, environ, start_response):
+        session_holder = []
+        def session_factory():
+            if not session_holder:
+                session_holder[:] = [self._load_session(environ)]
+            return session_holder[0]
+
+        environ[self._environ_key] = session_factory
+
+        def my_start_response(status, headers, exc_info=None):
+            self._add_cookie(environ, session_holder, headers)
+            return start_response(status, headers, exc_info)
+
+        return self._application(environ, my_start_response)
+
+    def _load_session(self, environ):
         session = None
 
         try:
@@ -133,15 +148,12 @@ class SessionMiddleware(object):
         if session is None:
             session = self._session_cls()
 
-        environ[self._environ_key] = session
 
-        def my_start_response(status, headers, exc_info=None):
-            self._add_cookie(environ, session, headers)
-            return start_response(status, headers, exc_info)
+        return session
 
-        return self._application(environ, my_start_response)
-
-    def _add_cookie(self, environ, session, headers):
+    def _add_cookie(self, environ, session_holder, headers):
+        if not session_holder: return
+        session = session_holder[0]
         if not session.dirty: return
 
         encoded_data = self._serializer.encode(session)

@@ -2,7 +2,7 @@ from flupsession import SessionMiddleware
 
 
 def test_app(environ, start_response):
-    session = environ['flup.session']
+    session = environ['flup.session']()
 
     path_info = environ.get('PATH_INFO', '')
     if path_info == '/reset':
