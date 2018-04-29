@@ -85,7 +85,7 @@ class SessionMiddleware(object):
                  cookie_expires=None, # Default: end-of-session
                  httponly=True,
                  secure=None, # Default: True if https, False otherwise
-                 token_ttl=None # Default: 1 day if cookie_expires is None
+                 token_ttl=None # Default: Same as cookie_expires
     ):
         self._application = application
         if secret_key is None:
@@ -94,6 +94,7 @@ class SessionMiddleware(object):
             # TODO emit warning if cookie_expires is set
         self._secret_key = secret_key
         self._environ_key = environ_key
+
         self._cookie_key = cookie_key
         self._cookie_domain = cookie_domain
         self._cookie_path = cookie_path
@@ -101,12 +102,7 @@ class SessionMiddleware(object):
         self._httponly = httponly
         self._secure = secure
 
-        if token_ttl is None:
-            # If not set and cookie_expires is not set, default to 1 day
-            # Otherwise set to cookie_expires.
-            token_ttl = cookie_expires is not None and cookie_expires or \
-                        86400
-        self._token_ttl = token_ttl
+        self._token_ttl = token_ttl is not None and token_ttl or cookie_expires
 
         self._session_cls = Session # TODO configurable
         self._serializer = SessionSerializer() # TODO configurable
