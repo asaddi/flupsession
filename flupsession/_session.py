@@ -1,7 +1,8 @@
-from __future__ import print_function
-
 import json
-from Cookie import SimpleCookie, CookieError
+import warnings
+
+from six.moves.http_cookies import SimpleCookie, CookieError
+from six.moves import cPickle as pickle
 
 from cryptography.fernet import Fernet, InvalidToken
 
@@ -65,13 +66,33 @@ class Session(dict):
         self._valid = False
 
 
-class SessionSerializer(object):
+class SessionSerializerException(Exception):
+    pass
+
+
+class JSONSessionSerializer(object):
 
     def encode(self, session):
         return json.dumps(session, separators=(',', ':'), sort_keys=True)
 
     def decode(self, input):
-        return json.loads(input)
+        try:
+            return json.loads(input)
+        except Exception as e:
+            raise SessionSerializerException(e)
+
+
+class PickleSessionSerializer(object):
+
+    def encode(self, session):
+        # Only serialize a plain dict
+        return pickle.dumps(dict(session), protocol=pickle.HIGHEST_PROTOCOL)
+
+    def decode(self, input):
+        try:
+            return pickle.loads(input)
+        except pickle.PickleError as e:
+            raise SessionSerializerException(e)
 
 
 class SessionMiddleware(object):
@@ -85,7 +106,8 @@ class SessionMiddleware(object):
                  cookie_expires=None, # Default: end-of-session
                  httponly=True,
                  secure=None, # Default: True if https, False otherwise
-                 token_ttl=None # Default: Same as cookie_expires
+                 token_ttl=None, # Default: Same as cookie_expires
+                 serializer='json'
     ):
         self._application = application
         if secret_key is None:
@@ -104,8 +126,14 @@ class SessionMiddleware(object):
 
         self._token_ttl = token_ttl is not None and token_ttl or cookie_expires
 
+        if serializer == 'json':
+            self._serializer = JSONSessionSerializer()
+        elif serializer == 'pickle':
+            self._serializer = PickleSessionSerializer()
+        else:
+            raise ValueError('Unknown serializer')
+
         self._session_cls = Session # TODO configurable
-        self._serializer = SessionSerializer() # TODO configurable
         self._crypto = Fernet(secret_key)
 
     def __call__(self, environ, start_response):
@@ -138,12 +166,11 @@ class SessionMiddleware(object):
                 # Attempt to decrypt and decode
                 session_data = self._crypto.decrypt(morsel.value, ttl=self._token_ttl)
                 session = self._session_cls(self._serializer.decode(session_data))
-            except InvalidToken:
+            except (InvalidToken, SessionSerializerException):
                 pass
 
         if session is None:
             session = self._session_cls()
-
 
         return session
 
@@ -158,11 +185,12 @@ class SessionMiddleware(object):
         # Check size since generally headers should be < 4KB
         data_limit = 4000
         if len(session_data) > data_limit:
-            print('WARNING: Encoded session data exceeds {} bytes'.format(data_limit), file=environ['wsgi.errors'])
+            warnings.warn('Encoded session data exceeds {} bytes'.format(data_limit))
 
         C = SimpleCookie()
         name = self._cookie_key
         C[name] = session_data
+
         if self._cookie_domain:
             C[name]['domain'] = self._cookie_domain
 

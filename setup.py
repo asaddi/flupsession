@@ -1,9 +1,10 @@
 from setuptools import setup, find_packages
 setup(
     name='flupsession',
-    version='0.1',
+    version='0.2',
     packages=find_packages(),
     install_requires=[
+        'six>=1.11.0',
         'cryptography>=2.2.2',
         ],
 
