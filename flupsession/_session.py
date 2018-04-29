@@ -106,7 +106,7 @@ class SessionMiddleware(object):
                  cookie_expires=None, # Default: end-of-session
                  httponly=True,
                  secure=None, # Default: True if https, False otherwise
-                 token_ttl=None, # Default: Same as cookie_expires
+                 session_ttl=None, # Default: Same as cookie_expires
                  serializer='json'
     ):
         self._application = application
@@ -124,7 +124,7 @@ class SessionMiddleware(object):
         self._httponly = httponly
         self._secure = secure
 
-        self._token_ttl = token_ttl is not None and token_ttl or cookie_expires
+        self._session_ttl = session_ttl is not None and session_ttl or cookie_expires
 
         if serializer == 'json':
             self._serializer = JSONSessionSerializer()
@@ -164,7 +164,7 @@ class SessionMiddleware(object):
         if morsel is not None:
             try:
                 # Attempt to decrypt and decode
-                session_data = self._crypto.decrypt(morsel.value, ttl=self._token_ttl)
+                session_data = self._crypto.decrypt(morsel.value, ttl=self._session_ttl)
                 session = self._session_cls(self._serializer.decode(session_data))
             except (InvalidToken, SessionSerializerException):
                 pass
