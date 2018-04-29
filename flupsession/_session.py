@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 import json
-from Cookie import SimpleCookie
+from Cookie import SimpleCookie, CookieError
 
 from cryptography.fernet import Fernet, InvalidToken
 
@@ -115,9 +115,13 @@ class SessionMiddleware(object):
     def __call__(self, environ, start_response):
         session = None
 
-        # Attempt to load existing cookie from environ
-        C = SimpleCookie(environ.get('HTTP_COOKIE'))
-        morsel = C.get(self._cookie_key, None)
+        try:
+            # Attempt to load existing cookie from environ
+            C = SimpleCookie(environ.get('HTTP_COOKIE'))
+            morsel = C.get(self._cookie_key)
+        except CookieError:
+            morsel = None
+
         if morsel is not None:
             try:
                 # Attempt to decrypt and decode
