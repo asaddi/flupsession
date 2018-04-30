@@ -26,44 +26,44 @@ class Session(dict):
     def valid(self):
         return self._valid
 
-    def touch(self):
+    def save(self):
         self._dirty = True
-
-    def __setitem__(self, key, value):
-        super(Session, self).__setitem__(key, value)
-        self.touch()
-
-    def __delitem__(self, key):
-        super(Session, self).__delitem__(key)
-        self.touch()
-
-    def clear(self):
-        super(Session, self).clear()
-        self.touch()
-
-    def pop(self, key, *args):
-        result = super(Session, self).pop(key, *args)
-        self.touch()
-        return result
-
-    def popitem(self):
-        result = super(Session, self).popitem()
-        self.touch()
-        return result
-
-    def setdefault(self, key, *args):
-        result = super(Session, self).setdefault(key, *args)
-        self.touch()
-        return result
-
-    def update(self, other=None):
-        super(Session, self).update(other)
-        self.touch()
-        return result
 
     def invalidate(self):
         self.clear()
         self._valid = False
+
+    def __setitem__(self, key, value):
+        super(Session, self).__setitem__(key, value)
+        self.save()
+
+    def __delitem__(self, key):
+        super(Session, self).__delitem__(key)
+        self.save()
+
+    def clear(self):
+        super(Session, self).clear()
+        self.save()
+
+    def pop(self, key, *args):
+        result = super(Session, self).pop(key, *args)
+        self.save()
+        return result
+
+    def popitem(self):
+        result = super(Session, self).popitem()
+        self.save()
+        return result
+
+    def setdefault(self, key, *args):
+        result = super(Session, self).setdefault(key, *args)
+        self.save()
+        return result
+
+    def update(self, other=None):
+        super(Session, self).update(other)
+        self.save()
+        return result
 
 
 class SessionSerializerException(Exception):
