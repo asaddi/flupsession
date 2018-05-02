@@ -1,5 +1,6 @@
 import json
 import warnings
+import zlib
 
 from six.moves.http_cookies import SimpleCookie, CookieError
 from six.moves import cPickle as pickle
@@ -107,7 +108,8 @@ class SessionMiddleware(object):
                  httponly=True,
                  secure=None, # Default: True if https, False otherwise
                  session_ttl=None, # Default: Same as cookie_expires
-                 serializer='json'
+                 serializer='json',
+                 compression=-1,
     ):
         self._application = application
         if secret_key is None:
@@ -132,6 +134,15 @@ class SessionMiddleware(object):
             self._serializer = PickleSessionSerializer()
         else:
             raise ValueError('Unknown serializer')
+
+        if compression is not None:
+            def compress(data):
+                return zlib.compress(data, compression)
+            self._compressor = (compress, zlib.decompress)
+        else:
+            def noop(data):
+                return data
+            self._compressor = (noop, noop)
 
         self._session_cls = Session # TODO configurable
         self._crypto = Fernet(secret_key)
@@ -165,8 +176,8 @@ class SessionMiddleware(object):
             try:
                 # Attempt to decrypt and decode
                 session_data = self._crypto.decrypt(morsel.value, ttl=self._session_ttl)
-                session = self._session_cls(self._serializer.decode(session_data))
-            except (InvalidToken, SessionSerializerException):
+                session = self._session_cls(self._serializer.decode(self._compressor[1](session_data)))
+            except (InvalidToken, SessionSerializerException, zlib.error):
                 pass
 
         if session is None:
@@ -179,7 +190,7 @@ class SessionMiddleware(object):
         session = session_holder[0]
         if not session.dirty: return
 
-        encoded_data = self._serializer.encode(session)
+        encoded_data = self._compressor[0](self._serializer.encode(session))
         session_data = self._crypto.encrypt(encoded_data)
 
         # Check size since generally headers should be < 4KB
