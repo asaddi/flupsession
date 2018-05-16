@@ -18,7 +18,6 @@ class Session(dict):
 
         self._dirty = False
         self._valid = True
-        self.path = None
 
     @property
     def dirty(self):
@@ -183,11 +182,9 @@ class SessionMiddleware(object):
                 session = self._session_cls()
                 # And ensure invalid cookie is overwritten
                 session.save()
-            session.path = morsel['path']
 
         if session is None:
             session = self._session_cls()
-            session.path = self._cookie_path
 
         return session
 
@@ -212,11 +209,11 @@ class SessionMiddleware(object):
             C[name]['domain'] = self._cookie_domain
 
         # If no cookie path is configured, use this requests's SCRIPT_NAME
-        cookie_path = session.path
+        cookie_path = self._cookie_path
         if cookie_path is None:
             cookie_path = environ['SCRIPT_NAME']
-        if not cookie_path:
-            cookie_path = '/'
+            if not cookie_path:
+                cookie_path = '/'
         C[name]['path'] = cookie_path
 
         if self._httponly:
