@@ -74,7 +74,7 @@ class SessionSerializerException(Exception):
 class JSONSessionSerializer(object):
 
     def encode(self, session):
-        return json.dumps(session, separators=(',', ':'), sort_keys=True)
+        return json.dumps(session, separators=(',', ':'), sort_keys=True).encode('ascii')
 
     def decode(self, input):
         try:
@@ -175,7 +175,7 @@ class SessionMiddleware(object):
         if morsel is not None:
             try:
                 # Attempt to decrypt and decode
-                session_data = self._crypto.decrypt(morsel.value, ttl=self._session_ttl)
+                session_data = self._crypto.decrypt(morsel.value.encode('ascii'), ttl=self._session_ttl)
                 session = self._session_cls(self._serializer.decode(self._compressor[1](session_data)))
             except (InvalidToken, SessionSerializerException, zlib.error):
                 # Start anew
@@ -203,7 +203,7 @@ class SessionMiddleware(object):
 
         C = SimpleCookie()
         name = self._cookie_key
-        C[name] = session_data
+        C[name] = session_data.decode('ascii')
 
         if self._cookie_domain:
             C[name]['domain'] = self._cookie_domain
